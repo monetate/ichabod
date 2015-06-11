@@ -1,0 +1,70 @@
+2014-11-18 version 0.1.0
+	* use smaller rendering engine layer (fixes possible event loop freeze)
+	* remove wkhtmltopdf dependency
+
+2014-11-13 version 0.0.18
+	* verbose logging
+
+2014-11-04 version 0.0.17
+	* add support for statsd instrumentation
+
+2014-10-13 version 0.0.16
+	* fix for incorrect animated gif initial width
+
+2014-09-26 version 0.0.15
+	* fix for handling sites which alter body.scrollHeight
+
+2014-08-27 version 0.0.14
+	* add slow response threshold, with increased logging
+
+2014-08-22 version 0.0.13
+	* improved logging
+	* report more errors/warnings to client
+
+2014-08-21 version 0.0.12
+	* handle iframe loading better
+	* improved error reporting
+
+2014-08-14 version 0.0.11
+	* handle animated high-color frames better
+
+2014-08-13 version 0.0.10
+	* reduce size of animated gifs
+
+2014-08-06 version 0.0.9
+	* fix for low-color gifs
+
+2014-08-05 version 0.0.8
+	* report errors to client
+	* added crop feature
+	* added load_timeout_msec option
+
+2014-06-19 version 0.0.7
+	* fix corruption of animated gifs containing oddly shaped fonts
+
+2014-05-30 version 0.0.6
+	* improved speed of MEDIANCUT
+	* Add MEDIANCUT_FLOYD
+
+2014-05-28 version 0.0.5
+	* incorporate ppmquant code for going from full-color to 8-bit gif
+	* fix small memory leak during gif creation
+	* add different dithering/quantize options (DIFFUSE/ORDERED/THRESHOLD)
+	* initial version of MEDIANCUT quantization (slow)
+
+2014-05-22 version 0.0.4
+	* adjust quality settings for faster png saving
+
+2014-05-14 version 0.0.3
+	* larger buffer for POST parameters
+	* report javascript warnings to client
+	* expose looping control to javascript
+
+2014-05-09 version 0.0.2
+	* rasterization control in javascript
+	* added tests
+	* initial gif support
+	* added /health endpoint
+
+2014-05-05 version 0.0.1
+	* Initial version

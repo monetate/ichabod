@@ -1,0 +1,13 @@
+# Site settings
+title: Ichabod
+description: > # this means to ignore newlines until "baseurl:"
+ Ichabod is a server process which accepts POSTed HTML and can
+ rasterize (eg. render images) and evaluate JS in that HTML
+ document. There is a focus on rendering speed.
+baseurl: "" # the subpath of your site, e.g. /blog/
+url: "http://ichabod.org"
+#url: "http://localhost:4000"
+githuburl: "http://github.com/monetate/ichabod-public"
+
+# Build settings
+markdown: kramdown

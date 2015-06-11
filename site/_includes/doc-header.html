@@ -1,0 +1,20 @@
+<style>
+  #navlist li
+  {
+  display: inline;
+  list-style-type: none;
+  padding-right: 20px;
+  }
+</style>
+
+<span style="float: left; margin-right: 10px;">More docs:</span>
+<ul id="navlist">
+ {% assign post_list = site.posts | sort:"title" %}
+ {% for post in post_list %}
+    {% if post.category == "doc" %}
+    <li>
+        <a href="{{ post.url }}">{{ post.title }}</a>
+    </li>
+    {% endif %}
+ {% endfor %}
+ </ul>

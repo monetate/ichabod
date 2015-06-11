@@ -1,0 +1,9 @@
+---
+layout: default
+---
+
+<div class="home">
+
+{% capture myInclude %}{% include_relative _posts/2015-06-10-about.md %}{% endcapture %}
+{{ myInclude | markdownify }}
+</div>
