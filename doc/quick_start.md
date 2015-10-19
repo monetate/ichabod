@@ -9,7 +9,7 @@ ichabod --port=7777 --verbosity=1
 ## Hello, World!
 
 Ichabod accepts POSTed JSON on the listening port. The JSON should
-contain at a minum the 'html' or 'url' field, as well as the 'width',
+contain at a minimum the 'html' or 'url' field, as well as the 'width',
 'height', 'format', 'output' and 'js' fields.
 
 - **html** - Raw HTML code to be rasterized
