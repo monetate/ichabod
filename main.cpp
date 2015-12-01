@@ -2,6 +2,7 @@
 #include <string>
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QString>
 #include <QtCore>
 #include <QTemporaryFile>
@@ -86,8 +87,8 @@ static void send_headers(struct mg_connection* conn)
 }
 
 
-void debug_settings(const Settings& settings, const QString& script_result, 
-                    const QVector<QString>& warnings, const QVector<QString>& errors, 
+void debug_settings(const Settings& settings, const QString& script_result,
+                    const QVector<QString>& warnings, const QVector<QString>& errors,
                     bool success_status, double run_elapsedms, double convert_elapsedms)
 {
     int verbosity = settings.verbosity;
@@ -103,7 +104,7 @@ void debug_settings(const Settings& settings, const QString& script_result,
         std::cout << "       run ms: " << run_elapsedms << std::endl;
         std::cout << "   convert ms: " << convert_elapsedms << std::endl;
         std::cout << "     was slow: " << (run_elapsedms > settings.slow_response_ms) << std::endl;
-        std::cout << "script result: " << script_result.toLocal8Bit().constData() << std::endl;            
+        std::cout << "script result: " << script_result.toLocal8Bit().constData() << std::endl;
         std::cout << "      quality: " << settings.quality << std::endl;
         std::cout << "     quantize: " << settings.quantize_method << std::endl;
         std::cout << "          fmt: " << settings.fmt.toLocal8Bit().constData() << std::endl;
@@ -176,8 +177,7 @@ static int handle_default(struct mg_connection *conn, Settings& settings)
     debug_settings( settings, result, warnings, errors, conversion_success, run_elapsedms, convert_elapsedms );
 
     // create json return
-    Json::Value root;
-    root["path"] = settings.out.toLocal8Bit().constData();
+    Json::Value response_json;
 
     Json::Reader reader;
     Json::Value result_root;
@@ -187,10 +187,10 @@ static int handle_default(struct mg_connection *conn, Settings& settings)
     {
         result_root = Json::Value();
     }
-    root["result"] = result_root;
-    root["conversion"] = conversion_success;
-    root["run_elapsed"] = run_elapsedms;
-    root["convert_elapsed"] = convert_elapsedms;
+    response_json["result"] = result_root;
+    response_json["conversion"] = conversion_success;
+    response_json["run_elapsed"] = run_elapsedms;
+    response_json["convert_elapsed"] = convert_elapsedms;
     Json::Value js_warnings;
     for( QVector<QString>::iterator it = warnings.begin();
          it != warnings.end();
@@ -198,7 +198,7 @@ static int handle_default(struct mg_connection *conn, Settings& settings)
     {
         js_warnings.append( it->toLocal8Bit().constData() );
     }
-    root["warnings"] = js_warnings;
+    response_json["warnings"] = js_warnings;
     Json::Value js_errors;
     for( QVector<QString>::iterator it = errors.begin();
          it != errors.end();
@@ -206,11 +206,26 @@ static int handle_default(struct mg_connection *conn, Settings& settings)
     {
         js_errors.append( it->toLocal8Bit().constData() );
     }
-    root["errors"] = js_errors;
+    response_json["errors"] = js_errors;
+
+    QFile* file = new QFile(settings.out);
+    file->open(QIODevice::ReadOnly);
+    QByteArray image = file->readAll();
+    int originalSize = image.length();
+
+    QString encoded = QString(image.toBase64());
+    int encodedSize = encoded.size();
+
+    response_json["image"] = encoded.toLocal8Bit().constData();
+    response_json["image_original_size"] = originalSize;
+    response_json["image_encoded_size"] = encodedSize;
+    response_json["image_format"] = settings.fmt.toLocal8Bit().constData();
+
     Json::StyledWriter writer;
-    std::string json = writer.write(root);
+    std::string json = writer.write(response_json);
     mg_send_data(conn, json.c_str(), json.length());
 
+    file->remove(); // clean up the tempfile
     if ( settings.statsd )
     {
         settings.statsd->inc(settings.statsd_ns + "request");
@@ -233,9 +248,9 @@ static int handle_health(struct mg_connection *conn)
 }
 
 // handler for all incoming connections
-static int ev_handler(struct mg_connection *conn, enum mg_event ev) 
+static int ev_handler(struct mg_connection *conn, enum mg_event ev)
 {
-    if (ev == MG_REQUEST) 
+    if (ev == MG_REQUEST)
     {
         QString canonical_path = "/";
         QStringList pathParts = QString(conn->uri).split("/", QString::SkipEmptyParts);
@@ -252,8 +267,6 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev)
         QString html = get_var(conn, "html");
         QString js = get_var(conn, "js");
         QString rasterizer = get_var(conn, "rasterizer");
-        QString output = get_var(conn, "output");
-        QString url = get_var(conn, "url");
         bool transparent = get_var(conn, "transparent", "1").toInt();
         int width = get_var(conn, "width").toInt();
         int height = get_var(conn, "height", "-1").toInt();
@@ -276,36 +289,6 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev)
         {
             rasterizer = ICHABOD_NAME;
         }
-        if ( !output.length() )
-        {
-            return send_error(conn, "No output specified");
-        }
-        if ( width < 1 )
-        {
-            return send_error(conn, "Bad dimensions");
-        }
-        if ( !html.length() && !url.length() )
-        {
-            return send_error(conn, "Empty document and no URL specified");
-        }
-
-        QString input;
-        QTemporaryFile file(output + QString("_XXXXXX.html"));
-        if ( html.length() ) {
-            if ( !file.open() )
-            {
-                return send_error(conn, (QString("Unable to open:") + output 
-                                         + QString("_XXXXXX.html")).toLocal8Bit().constData() );
-            }
-            QTextStream out(&file);
-            out << html;
-            out.flush();
-
-            input = file.fileName();
-        } else {
-            input = url;
-        }
-
         if ( format.startsWith(".") )
         {
             format = format.mid(1);
@@ -313,6 +296,31 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev)
         if ( format.isEmpty() )
         {
             format = "png";
+        }
+        if ( width < 1 )
+        {
+            return send_error(conn, "Bad dimensions");
+        }
+        if ( !html.length() )
+        {
+            return send_error(conn, "Empty document");
+        }
+
+        QString input;
+        int rand = qrand();
+        QString output = "output_" + QString::number(QCoreApplication::applicationPid()) + "_" + QString::number(rand) + "." + format;
+        QTemporaryFile file(output + QString("_XXXXXX.html"));
+        if ( html.length() ) {
+            if ( !file.open() )
+            {
+                return send_error(conn, (QString("Unable to open:") + output
+                                         + QString("_XXXXXX.html")).toLocal8Bit().constData() );
+            }
+            QTextStream out(&file);
+            out << html;
+            out.flush();
+
+            input = file.fileName();
         }
 
         Settings settings;
@@ -347,8 +355,8 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev)
             settings.statsd = &g_statsd;
         }
         return handle_default(conn, settings);
-    } 
-    else if (ev == MG_AUTH) 
+    }
+    else if (ev == MG_AUTH)
     {
         return MG_TRUE;
     }
@@ -362,7 +370,7 @@ int main(int argc, char *argv[])
     QProxyStyle * style = new QProxyStyle();
     app.setStyle(style);
 
-    struct statsd_info 
+    struct statsd_info
     {
         statsd_info() : host("127.0.0.1"), port(8125), ns(std::string(ICHABOD_NAME)+"."), enabled(false) {}
         std::string host;
@@ -391,27 +399,27 @@ int main(int argc, char *argv[])
         {
             port =  rxPort.cap(1).toInt();
         }
-        else if (rxVerbose.indexIn(args.at(i)) != -1 ) 
+        else if (rxVerbose.indexIn(args.at(i)) != -1 )
         {
             g_verbosity = rxVerbose.cap(1).toInt();
         }
-        else if (rxEngineVerbose.indexIn(args.at(i)) != -1 ) 
+        else if (rxEngineVerbose.indexIn(args.at(i)) != -1 )
         {
             g_engine_verbosity = rxEngineVerbose.cap(1).toInt();
         }
-        else if (rxConvertVerbose.indexIn(args.at(i)) != -1 ) 
+        else if (rxConvertVerbose.indexIn(args.at(i)) != -1 )
         {
             g_convert_verbosity = rxConvertVerbose.cap(1).toInt();
         }
-        else if (rxSlowResponseMs.indexIn(args.at(i)) != -1 ) 
+        else if (rxSlowResponseMs.indexIn(args.at(i)) != -1 )
         {
             g_slow_response_ms = rxSlowResponseMs.cap(1).toInt();
         }
-        else if (rxQuantize.indexIn(args.at(i)) != -1 ) 
+        else if (rxQuantize.indexIn(args.at(i)) != -1 )
         {
             g_quantize = rxQuantize.cap(1);
         }
-        else if (rxVersion.indexIn(args.at(i)) != -1 ) 
+        else if (rxVersion.indexIn(args.at(i)) != -1 )
         {
             std::cout << ICHABOD_NAME << " version " << ICHABOD_VERSION << std::endl;
             std::cout << "** The GIFLIB distribution is Copyright (c) 1997  Eric S. Raymond" << std::endl;
@@ -452,7 +460,7 @@ int main(int argc, char *argv[])
             }
             statsd.enabled = true;
         }
-        else 
+        else
         {
             std::cerr << "Unknown arg:" << args.at(i).toLocal8Bit().constData() << std::endl;
             return -1;
@@ -460,7 +468,7 @@ int main(int argc, char *argv[])
     }
 
     ppm_init( &argc, argv );
-    
+
     struct mg_server *server = mg_create_server(NULL, ev_handler);
 
     const char * err = mg_set_option(server, "listening_port", QString::number(port).toLocal8Bit().constData());
@@ -469,11 +477,11 @@ int main(int argc, char *argv[])
         std::cerr << "Cannot bind to port:" << port << " [" << err << "], exiting." << std::endl;
         return -1;
     }
-    std::cout << ICHABOD_NAME << " " << ICHABOD_VERSION 
-              << " (port:" << mg_get_option(server, "listening_port") 
-              << " verbosity:" << g_verbosity 
-              << " engine verbosity:" << g_engine_verbosity 
-              << " convert verbosity:" << g_convert_verbosity 
+    std::cout << ICHABOD_NAME << " " << ICHABOD_VERSION
+              << " (port:" << mg_get_option(server, "listening_port")
+              << " verbosity:" << g_verbosity
+              << " engine verbosity:" << g_engine_verbosity
+              << " convert verbosity:" << g_convert_verbosity
               << " slow-response:" << g_slow_response_ms << "ms";
     if ( statsd.enabled )
     {
@@ -482,12 +490,12 @@ int main(int argc, char *argv[])
     }
     std::cout << ")" << std::endl;
 
-    for (;;) 
+    for (;;)
     {
         mg_poll_server(server, 1000);
     }
-    
+
     mg_destroy_server(&server);
-    
+
     return 0;
 }

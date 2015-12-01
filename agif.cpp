@@ -361,7 +361,7 @@ std::map<QRgb,int> g_nearest;
      QImage dImage( img.width(), img.height(), QImage::Format_Indexed8 );
      int i;
  
-     dImage.setNumColors( size );
+     dImage.setColorCount( size );
      for ( i = 0; i < size; i++ )
          dImage.setColor( i, palette[ i ].rgb() );
  
@@ -654,7 +654,7 @@ bool gifWrite ( const QuantizeMethod method, const QVector<QImage> & images, con
             }
         }
     }
-    EGifCloseFile(gif);
+    EGifCloseFile(gif, 0);
     return true;
 }
 

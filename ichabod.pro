@@ -4,24 +4,27 @@ MOC_DIR      = build
 OBJECTS_DIR  = build
 UI_DIR       = build
 
-QT += webkit network xmlpatterns svg
+QT += webkit network xmlpatterns svg webkitwidgets
+QT -= gui
 
 TEMPLATE = app
 TARGET = ichabod
-INCLUDEPATH += . mongoose giflib/lib
+INCLUDEPATH += . mongoose 
 CONFIG += debug
 
 # mongoose
 SOURCES += mongoose/mongoose.c
 
 # giflib
-SOURCES += giflib/lib/dgif_lib.c \
-           giflib/lib/egif_lib.c \
-           giflib/lib/gifalloc.c \
-           giflib/lib/gif_err.c \
-           giflib/lib/gif_font.c \
-           giflib/lib/gif_hash.c \
-           giflib/lib/quantize.c
+INCLUDEPATH += usr/include
+LIBS += -L/usr/local/lib -lgif
+SOURCES += code/lib/dgif_lib.c \
+       code/lib/egif_lib.c \
+       code/lib/gifalloc.c \
+       code/lib/gif_err.c \
+       code/lib/gif_font.c \
+       code/lib/gif_hash.c \
+       code/lib/quantize.c
 
 # jsoncpp
 INCLUDEPATH += jsoncpp/include
