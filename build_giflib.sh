@@ -1,6 +1,6 @@
 #!/bin/bash
 
-pushd giflib
+pushd code
 mkdir m4
 ./autogen.sh
 make

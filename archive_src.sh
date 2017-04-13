@@ -4,7 +4,7 @@ VERSION=$(ichabod_version)
 echo "Making S/RPM for version $VERSION"
 mkdir srcbuild
 pushd srcbuild
-git clone https://github.com/moseymosey/ichabod.git
+git clone https://github.com/monetate/ichabod.git
 pushd ichabod
 subm
 popd

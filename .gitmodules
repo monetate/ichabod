@@ -6,7 +6,8 @@
 	url = https://github.com/open-source-parsers/jsoncpp
 [submodule "code"]
 	path = code
-	url = http://git.code.sf.net/p/giflib/code
+    url = https://git.code.sf.net/p/giflib/code
+    branch = 5.1.4
 [submodule "statsd-client-cpp"]
 	path = statsd-client-cpp
 	url = https://github.com/moseymosey/statsd-client-cpp
@@ -15,5 +16,5 @@
 	url = https://github.com/moseymosey/netpbm.git
 [submodule "qt"]
 	path = qt
-	url = https://github.com/moseymosey/qt
-	branch = 4.8
+	url = https://code.qt.io/qt/qt5.git
+	branch = 5.5.1
